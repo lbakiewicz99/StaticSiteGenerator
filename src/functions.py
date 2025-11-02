@@ -263,8 +263,9 @@ def extract_title(markdown):
             return title
     raise Exception("There is no h1 header")
 
-def generate_page(from_path, template_path, dest_path):
-    print(f"Generating page from {from_path} to {dest_path} using {template_path}")
+def generate_page(from_path, template_path,basepath, output_path):
+    #print(basepath)
+    print(f"Generating page from {from_path} to {basepath} using {template_path}")
 
     with open(from_path) as f:
         markdown_content = f.read()
@@ -273,12 +274,14 @@ def generate_page(from_path, template_path, dest_path):
 
     html = template.replace("{{ Title }}", extract_title(markdown_content))
     html = html.replace("{{ Content }}", markdown_to_html_node(markdown_content).to_html())
+    html = html.replace('href="/',f'href="{basepath}')
+    html = html.replace('src="/',f'src="{basepath}')
 
-    dirpath = os.path.dirname(dest_path)
+    dirpath = os.path.dirname(output_path)
     if dirpath:
         os.makedirs(dirpath, exist_ok=True)
 
-    with open(dest_path, "w") as f:
+    with open(output_path, "w") as f:
         f.write(html)  
 
 def content_copy(content_path,template_path, dest):
@@ -298,16 +301,23 @@ def content_copy(content_path,template_path, dest):
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             generate_page(path,template_path,out_path)
 
-def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+def generate_pages_recursive(dir_path_content, template_path, basepath, dest_dir_path):
     if not os.path.exists(dir_path_content):
         raise Exception("Error: Path is not existing")
-    items_list = os.listdir(dir_path_content)
-    for item in items_list:
+
+    for item in os.listdir(dir_path_content):
         path = os.path.join(dir_path_content, item)
-        if os.path.isfile(path) and path.endswith(".md"):
-            generate_page(path, template_path,os.path.join(dest_dir_path, item.replace(".md",".html")))
-        else:
-            generate_pages_recursive(os.path.join(dir_path_content, item), template_path, os.path.join(dest_dir_path, item))
+
+        if os.path.isdir(path):
+            # Recurse into subdir; dest is a directory path
+            generate_pages_recursive(path, template_path, basepath, os.path.join(dest_dir_path, item))
+
+        elif os.path.isfile(path) and item.endswith(".md"):
+            if item == "index.md":
+                output_path = os.path.join(dest_dir_path, "index.html")
+            else:
+                output_path = os.path.join(dest_dir_path, item.replace(".md", ".html"))
+            generate_page(path, template_path, basepath, output_path)
 
 
         
